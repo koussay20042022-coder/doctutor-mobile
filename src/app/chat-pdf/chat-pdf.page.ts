@@ -88,24 +88,44 @@ interface ChatMessage {
     </ion-content>
   `,
   styles: [`
-    .split { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 56px); }
-    .pane { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid #ddd; }
+    
+
+    .split { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: 1fr 1fr; }
+
+
+    
+
+    .pane { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-right: 1px solid #ddd; }
+
+
     .pane iframe { flex: 1; width: 100%; border: 0; }
 
     .pdfview { flex: 1; overflow: auto; padding: 8px; background: #e9ecef; }
 
 
     .chat { border-right: 0; }
-    .messages { flex: 1; overflow-y: auto; padding: 12px; }
+    
+
+    .messages { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; }
+
+
     .bubble { background: #f1f3f5; padding: 10px 12px; border-radius: 10px; margin-bottom: 10px; max-width: 90%; white-space: pre-wrap; }
     .bubble.user { background: #3880ff; color: #fff; margin-left: auto; }
     .pages { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
     .pages button { border: 1px solid #3880ff; background: #fff; color: #3880ff; border-radius: 6px; padding: 2px 8px; cursor: pointer; }
-    .input-row { display: flex; gap: 8px; padding: 8px; border-top: 1px solid #ddd; align-items: center; }
+    
+
+    .input-row { flex-shrink: 0; display: flex; gap: 8px; padding: 8px; border-top: 1px solid #ddd; align-items: center; background: #fff; }
+
+
     .input-row input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; }
     .info { color: #666; padding: 12px; }
     @media (max-width: 768px) {
-      .split { grid-template-columns: 1fr; grid-template-rows: 45% 55%; }
+      
+    
+      .split { grid-template-columns: 1fr; grid-template-rows: 40% 60%; }
+
+
       .pane { border-right: 0; border-bottom: 1px solid #ddd; }
     }
   `]
@@ -272,5 +292,5 @@ export class ChatPdfPage implements OnInit {
     }
   }
 
-  
+
 }
