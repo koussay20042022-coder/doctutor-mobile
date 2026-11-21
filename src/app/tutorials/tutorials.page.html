@@ -1,0 +1,581 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>{{ selectedCourse ? selectedCourse.title : 'Catalogue des cours' }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="logout()">Déconnexion</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+
+  <!-- Bloc d'authentification étudiant -->
+  <div *ngIf="!isLoggedIn && !isAdmin" style="padding: 20px; text-align: center; max-width: 400px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+    <h2>Bienvenue sur DocTutor 🎓</h2>
+    <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Veuillez vous identifier pour accéder aux cours et aux quiz.</p>
+
+    <ion-item style="margin-bottom: 12px; border: 1px solid #ccc; border-radius: 8px;">
+      <ion-input #nameInput placeholder="Votre Nom et Prénom" type="text"></ion-input>
+    </ion-item>
+
+    <ion-item style="margin-bottom: 20px; border: 1px solid #ccc; border-radius: 8px;">
+      <ion-input #emailInput placeholder="Votre adresse e-mail" type="email"></ion-input>
+    </ion-item>
+
+    <ion-button expand="block" color="primary" (click)="loginStudent(nameInput.value, emailInput.value)">
+      Accéder à la plateforme
+    </ion-button>
+  </div>
+
+
+  <!-- Le reste du contenu s'affiche uniquement si l'utilisateur est connecté ou admin -->
+  <div *ngIf="isLoggedIn || isAdmin">
+
+  <ion-searchbar 
+    placeholder="Rechercher une formation ou un tutoriel..." 
+    (ionInput)="onSearch($event)">
+  </ion-searchbar>
+
+  <!-- ===== Vue 1 : liste des cours ===== -->
+  <ng-container *ngIf="!selectedCourse && !showFavorites">
+    <h1>Bienvenue dans DocTutor</h1>
+    <p>Sélectionnez un cours pour consulter ses tutoriels.</p>
+
+
+    <ion-button expand="block" color="danger" (click)="openFavorites()">
+      <ion-icon name="heart" slot="start"></ion-icon>
+      Mes favoris ({{ favoritesList.length }})
+    </ion-button>
+
+    <!-- Section Notifications -->
+    <div style="margin: 16px 0;">
+      <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 8px;">📢 Notifications & Mises à jour</h3>
+      <ion-list lines="none" style="background: transparent;">
+        <ion-item *ngFor="let notif of notificationsList" style="background: #f4f6f8; border-radius: 8px; margin-bottom: 6px;">
+          <ion-label>
+            <h2 style="font-weight: bold; font-size: 14px;">{{ notif.title }}</h2>
+            <p style="font-size: 12px; color: #555;">{{ notif.message }}</p>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+    </div>
+
+    <!-- Visible uniquement en mode administrateur -->
+    <ion-button *ngIf="isAdmin" expand="block" color="success" (click)="addCourse()">
+      + Ajouter un cours
+    </ion-button>
+
+    <p *ngIf="loading" class="ion-text-center">Chargement des cours...</p>
+    <p *ngIf="!loading && courses.length === 0" class="ion-text-center">
+      Aucun cours pour le moment.
+    </p>
+    
+    <ion-list *ngIf="searchResults.length > 0">
+      <ion-list-header>
+        <ion-label>Résultats de recherche</ion-label>
+      </ion-list-header>
+      <ion-item *ngFor="let item of searchResults" (click)="selectCourse(item)" button>
+        <ion-label>
+          <h2>{{ item.title }}</h2>
+          <p>{{ item.description }}</p>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+
+
+
+
+    <!-- Section Historique des consultations -->
+    <ion-list *ngIf="historyList.length > 0">
+      <ion-list-header>
+        <ion-label>Derniers tutoriels consultés</ion-label>
+      </ion-list-header>
+      <ion-item *ngFor="let item of historyList">
+        <ion-label>
+          <h2>{{ item.tutorial?.title || 'Tutoriel #' + item.tutorial_id }}</h2>
+          <p>Consulté le : {{ item.created_at | date:'short' }}</p>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+
+
+    <ion-list>
+      <ion-item button detail="true" *ngFor="let course of courses" (click)="selectCourse(course)">
+        <ion-label>
+          <h2>{{ course.title }}</h2>
+          <p>{{ course.description }}</p>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+
+  </ng-container>
+
+
+  <!-- ===== Vue 2 : tutoriels d'un cours ===== -->
+  <ng-container *ngIf="selectedCourse">
+    <ion-button fill="clear" (click)="backToCourses()">← Retour aux cours</ion-button>
+
+    <h1>{{ selectedCourse.title }}</h1>
+    <p>{{ selectedCourse.description }}</p>
+
+    <!-- Barre de progression de la formation -->
+    <div style="margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px;">
+        <span>Progression du cours</span>
+        <span>{{ courseProgress }}%</span>
+      </div>
+      <ion-progress-bar [value]="courseProgress / 100" color="success"></ion-progress-bar>
+    </div>
+
+
+    <div *ngIf="isAdmin" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
+      <ion-button size="small" color="warning" (click)="editCourse()">Modifier le cours</ion-button>
+      <ion-button size="small" color="danger" (click)="deleteCourse()">Supprimer le cours</ion-button>
+      
+    </div>
+
+    <!-- Visible uniquement en mode administrateur -->
+    <!--
+    <ion-button *ngIf="isAdmin" expand="block" color="success" (click)="addTutorial()">
+      + Ajouter un tutoriel
+    </ion-button>
+    -->
+
+
+        <ion-button *ngIf="isAdmin" expand="block" color="success" (click)="showAddForm = !showAddForm">
+      {{ showAddForm ? 'Annuler' : '+ Ajouter un tutoriel' }}
+    </ion-button>
+
+    <div *ngIf="isAdmin && showAddForm" style="padding: 12px; border: 1px solid #ccc; border-radius: 8px; margin: 12px 0;">
+      <input #newTitle type="text" placeholder="Titre du tutoriel"
+             style="width: 100%; padding: 10px; margin-bottom: 8px; box-sizing: border-box;">
+      <input #newDesc type="text" placeholder="Description"
+             style="width: 100%; padding: 10px; margin-bottom: 8px; box-sizing: border-box;">
+      <label style="display: block; margin-bottom: 4px;">Fichier PDF (facultatif)</label>
+      <input type="file" accept="application/pdf" (change)="onNewPdf($event)"
+             style="margin-bottom: 12px; width: 100%;">
+      <ion-button expand="block" (click)="saveNewTutorial(newTitle.value, newDesc.value)">
+        Enregistrer le tutoriel
+      </ion-button>
+
+      
+
+    </div>
+
+
+
+    <p *ngIf="tutorials.length === 0" class="ion-text-center">
+      Aucun tutoriel dans ce cours.
+    </p>
+
+    <ion-list>
+      <ion-item *ngFor="let t of tutorials">
+        <ion-label class="ion-text-wrap">
+          <h2>{{ t.title }}</h2>
+          <p>{{ t.description }}</p>
+
+          <ion-badge *ngIf="isAdmin" [color]="t.published ? 'success' : 'medium'">
+            {{ t.published ? 'Publié' : 'Non publié' }}
+          </ion-badge>
+        </ion-label>
+        
+        
+        <!-- >>>  BOUTON FAVORI   <<< -->
+        <ion-button fill="clear" slot="end" (click)="toggleFavorite(t)">
+        <ion-icon [name]="t.isFavorite ? 'heart' : 'heart-outline'" [color]="t.isFavorite ? 'danger' : 'medium'"></ion-icon>
+        </ion-button>
+
+        <!-- Bouton Marquer comme terminé -->
+        <ion-button fill="clear" slot="end" (click)="toggleCompletion(t)">
+          <ion-icon [name]="t.isCompleted ? 'checkmark-circle' : 'checkmark-circle-outline'" [color]="t.isCompleted ? 'success' : 'medium'"></ion-icon>
+        </ion-button>
+
+        <!-- Système de notation par étoiles -->
+        <div style="margin-top: 8px; display: flex; align-items: center; gap: 4px;">
+          <span style="font-size: 12px; color: #666; margin-right: 4px;">Note :</span>
+          <ion-icon 
+          *ngFor="let star of [1,2,3,4,5]; let i = index" 
+          [name]="t.rating >= (i + 1) ? 'star' : 'star-outline'" 
+          color="warning" 
+          (click)="rate(t, i + 1)"
+          style="font-size: 20px; cursor: pointer;">
+          </ion-icon>
+        </div>
+
+          <!-- Étudiant et admin : consulter le PDF -->
+           <!--
+          <div *ngIf="t.pdf_url" style="margin-top: 8px;">
+            <ion-button size="small" fill="outline" [href]="t.pdf_url" target="_blank">
+              Voir le PDF
+            </ion-button>
+          </div>-->
+
+          <!-- Étudiant et admin : consulter le PDF et outils IA -->
+          <div *ngIf="t.pdf_url" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">
+            <ion-button size="small" fill="outline" [href]="t.pdf_url" target="_blank" (click)="markPdfViewed(t)">
+              Voir le PDF
+            </ion-button>
+
+          <!-- Bouton Quiz IA -->
+          <ion-button size="small" color="tertiary" (click)="openQuizOptions(t)">
+            🧠 Quiz IA
+          </ion-button>
+
+          <!-- Bouton Résumé IA -->
+          <ion-button size="small" color="secondary" (click)="openSummaryOptions(t)">
+            📄 Résumé IA
+          </ion-button>
+
+
+          <ion-button size="small" color="dark" (click)="openChatPdf(t)">
+            💬 Chat PDF
+          </ion-button>
+
+          <ion-button size="small" color="success" (click)="openMindMap(t)">
+            🗺️ Carte mentale
+          </ion-button>
+          </div>
+
+          <!-- Admin uniquement -->
+          <div *ngIf="isAdmin" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">
+            <ion-button size="small" [color]="t.published ? 'medium' : 'primary'" (click)="togglePublish(t)">
+              {{ t.published ? 'Dépublier' : 'Publier' }}
+            </ion-button>
+
+            <ion-button size="small" color="warning" (click)="editTutorial(t)">
+              Modifier
+            </ion-button>
+
+            <ion-button size="small" color="tertiary" (click)="pdfInput.click()">
+              {{ t.pdf_url ? 'Changer le PDF' : 'Ajouter un PDF' }}
+            </ion-button>
+            <input #pdfInput type="file" accept="application/pdf" hidden (change)="changePdf($event, t)">
+
+            <ion-button size="small" color="danger" (click)="removeTutorial(t)">Supprimer</ion-button>
+                        <ion-button *ngIf="isAdmin" size="small" color="tertiary" (click)="openTutorialDoneStats(t)">📊 Statistique cours</ion-button>
+            <ion-button *ngIf="isAdmin" size="small" color="secondary" (click)="openTutorialRatingStats(t)">⭐ Statistique note</ion-button>
+
+          </div>
+
+
+
+
+          <!-- Section Commentaires -->
+          <div style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 8px; width: 100%;">
+            <p style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">Commentaires :</p>
+
+            <!-- Liste des commentaires du tutoriel -->
+             <!--
+            <div *ngFor="let comment of t.comments" style="font-size: 12px; background: #f9f9f9; padding: 6px; border-radius: 4px; margin-bottom: 4px;">
+              {{ comment.text }}
+            </div> -->
+            <div *ngFor="let comment of t.comments" style="font-size: 12px; background: #f9f9f9; padding: 6px; border-radius: 4px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+              <span>
+                <strong *ngIf="comment.authorName">{{ comment.authorName }} : </strong>{{ comment.text }}
+              </span>
+              <ion-button *ngIf="isAdmin" size="small" color="danger" fill="clear" (click)="removeComment(t, comment)">Supprimer</ion-button>
+            </div>
+
+            <!-- Champ pour ajouter un commentaire -->
+            <div style="display: flex; gap: 6px; margin-top: 6px;">
+              <ion-input [(ngModel)]="t.newCommentText" placeholder="Écrire un commentaire..." style="font-size: 12px; border: 1px solid #ccc; border-radius: 4px; padding: 4px;"></ion-input>
+              <ion-button size="small" (click)="postComment(t)">Envoyer</ion-button>
+            </div>
+          </div>
+          
+          
+          
+          <!-- Section Commentaires --> 
+          <!--
+          <div style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 8px; width: 100%;">
+            <p style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">Commentaires :</p>
+            -->
+      
+            <!-- Liste des commentaires du tutoriel -->
+            <!--
+            <div *ngFor="let comment of t.comments" style="font-size: 12px; background: #f9f9f9; padding: 6px; border-radius: 4px; margin-bottom: 4px;">
+              {{ comment.text }}
+            </div>
+            -->
+
+            <!-- Champ pour ajouter un commentaire -->
+            <!--
+            <div style="display: flex; gap: 6px; margin-top: 6px;">
+              <ion-input [(ngModel)]="t.newCommentText" placeholder="Écrire un commentaire..." style="font-size: 12px; border: 1px solid #ccc; border-radius: 4px; padding: 4px;"></ion-input>
+              <ion-button size="small" (click)="postComment(t)">Envoyer</ion-button>
+            </div>
+          </div>  -->
+
+
+        <!--</ion-label>-->
+      </ion-item>
+    </ion-list>
+  </ng-container>
+
+
+
+
+  <ng-container *ngIf="showFavorites">
+  <ion-button fill="clear" (click)="closeFavorites()">← Retour aux cours</ion-button>
+  <h1>❤️ Mes favoris</h1>
+
+  <p *ngIf="favoritesList.length === 0" class="ion-text-center">
+    Aucun favori pour le moment.
+  </p>
+
+  <ion-list>
+    <ion-item button detail="true" *ngFor="let fav of favoritesList" (click)="openFavorite(fav)">
+      <ion-label>
+        <h2>{{ fav.title }}</h2>
+        <p>{{ getCourseTitle(fav) }}</p>
+      </ion-label>
+      <ion-button fill="clear" slot="end" (click)="toggleFavorite(fav); $event.stopPropagation()">
+        <ion-icon name="heart" color="danger"></ion-icon>
+      </ion-button>
+    </ion-item>
+  </ion-list>
+</ng-container>
+
+
+
+
+  <!-- ================= VUE DU QUIZ IA INTERACTIF ================= -->
+  <div *ngIf="showQuizModal" style="padding: 20px; background: #ffffff; border-radius: 12px; margin: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+    
+    <!-- En-tête du Quiz -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h2 style="font-size: 18px; font-weight: bold; color: #3880ff;">🧠 Quiz IA - {{ activeTutorialForQuiz?.title }}</h2>
+      <ion-button size="small" color="medium" fill="clear" (click)="showQuizModal = false">Fermer</ion-button>
+    </div>
+
+    <!-- Si le quiz n'est pas encore terminé : Affichage des questions -->
+    <div *ngIf="!quizFinished && currentQuiz.length > 0">
+      <p style="font-size: 14px; color: #666; margin-bottom: 8px;">
+        Question {{ currentQuestionIndex + 1 }} sur {{ currentQuiz.length }}
+      </p>
+
+      <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 16px; color: #333;">
+        {{ currentQuiz[currentQuestionIndex].question }}
+      </h3>
+
+      <!-- Liste des options / choix -->
+      <div *ngFor="let option of currentQuiz[currentQuestionIndex].options" style="margin-bottom: 10px;">
+        <ion-button 
+          expand="block" 
+          [color]="isAnswerChecked ? (option.trim() === currentQuiz[currentQuestionIndex].answer.trim() ? 'success' : (option === selectedAnswer ? 'danger' : 'light')) : 'light'"
+          (click)="selectAnswer(option)"
+          style="text-transform: none; text-align: left; font-weight: normal;">
+          {{ option }}
+        </ion-button>
+      </div>
+
+      <!-- Message de correction en direct -->
+      <div *ngIf="isAnswerChecked" style="margin-top: 16px; text-align: center; font-weight: bold;">
+        <p *ngIf="isCorrectAnswer" style="color: #2dd36f;">Bonne réponse ! 🎉</p>
+        <p *ngIf="!isCorrectAnswer" style="color: #eb445a;">
+          Mauvaise réponse. La bonne réponse était : <span style="color: #222;">{{ currentQuiz[currentQuestionIndex].answer }}</span>
+        </p>
+
+        <ion-button expand="block" color="primary" style="margin-top: 12px;" (click)="nextQuestion()">
+          {{ currentQuiz.length - 1 > currentQuestionIndex ? 'Question suivante ➡️' : 'Voir mon score final 🏆' }}
+        </ion-button>
+      </div>
+    </div>
+
+    <!-- Si le quiz est terminé : Affichage du score final -->
+    <div *ngIf="quizFinished" style="text-align: center; padding: 20px;">
+      <h2 style="font-size: 22px; font-weight: bold; color: #3880ff; margin-bottom: 12px;">Quiz Terminé ! 🎓</h2>
+      <p style="font-size: 16px; color: #444; margin-bottom: 20px;">
+        Votre score final pour ce cours est : 
+        <strong style="font-size: 24px; color: #2dd36f;">{{ userScore }} / {{ currentQuiz.length }}</strong>
+      </p>
+      <p style="font-size: 13px; color: #666; margin-bottom: 20px;">
+        Votre résultat a été enregistré avec l'e-mail : <strong>{{ studentEmail }}</strong>
+      </p>
+
+      <ion-button expand="block" color="primary" (click)="showQuizModal = false">
+        Retourner au cours
+      </ion-button>
+    </div>
+
+  </div>
+
+
+    <!-- ================= PANNEAU RÉSUMÉ IA ================= -->
+  <div id="summaryPanel" *ngIf="showSummaryPanel" style="padding: 20px; background: #ffffff; border-radius: 12px; margin: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h2 style="font-size: 18px; font-weight: bold; color: #3880ff;">📄 {{ summaryTitle }}</h2>
+      <ion-button size="small" color="medium" fill="clear" (click)="showSummaryPanel = false">Fermer</ion-button>
+    </div>
+
+    <p *ngIf="summaryLoading" style="color: #666;">Génération en cours... (quelques secondes)</p>
+
+    <div *ngIf="!summaryLoading" style="white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: #333;">{{ summaryText }}</div>
+
+    <div *ngIf="!summaryLoading && summaryText" style="margin-top: 12px;">
+      <ion-button size="small" fill="outline" (click)="copySummary()">Copier</ion-button>
+    </div>
+  </div>
+
+
+
+
+
+
+
+    <!-- ================= PANNEAU STATISTIQUES ADMIN ================= -->
+     <!--
+  <div id="statsPanel" *ngIf="isAdmin && showStatsPanel" style="padding: 20px; background: #ffffff; border-radius: 12px; margin: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h2 style="font-size: 18px; font-weight: bold; color: #3880ff;">
+        {{ statsKind === 'course' ? '📊 Statistiques du cours' : '⭐ Statistiques des notes' }}
+      </h2>
+      <ion-button size="small" color="medium" fill="clear" (click)="showStatsPanel = false">Fermer</ion-button>
+    </div>
+
+    <p *ngIf="statsLoading" style="color: #666;">Chargement...</p>
+    <p *ngIf="statsError" style="color: #eb445a;">{{ statsError }}</p>
+  -->
+
+    <!-- Cours : qui a terminé -->
+     <!--
+    <div *ngIf="!statsLoading && !statsError && statsKind === 'course'" style="overflow-x: auto;">
+      <p style="font-size: 14px; margin-bottom: 8px;">
+        {{ finishedCount }} étudiant(s) ont terminé le cours ({{ courseStatsTotal }} tutoriel(s) publié(s)).
+      </p>
+      <p *ngIf="courseStatsRows.length === 0" style="color: #666;">Aucun étudiant n'a encore commencé ce cours.</p>
+      <table *ngIf="courseStatsRows.length > 0" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background: #f4f6f8; text-align: left;">
+            <th style="padding: 8px;">Nom</th>
+            <th style="padding: 8px;">E-mail</th>
+            <th style="padding: 8px;">Progression</th>
+            <th style="padding: 8px;">Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of courseStatsRows" style="border-top: 1px solid #eee;">
+            <td style="padding: 8px;">{{ r.name }}</td>
+            <td style="padding: 8px;">{{ r.email }}</td>
+            <td style="padding: 8px;">{{ r.completed }} / {{ r.total }} ({{ r.percent }}%)</td>
+            <td style="padding: 8px;">
+              <span [style.color]="r.finished ? '#2dd36f' : '#f59e0b'" style="font-weight: bold;">
+                {{ r.finished ? 'Terminé ✓' : 'En cours' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  -->
+
+    <!-- Notes : qui a noté -->
+     <!--
+    <div *ngIf="!statsLoading && !statsError && statsKind === 'ratings'" style="overflow-x: auto;">
+      <p style="font-size: 14px; margin-bottom: 8px;">
+        {{ ratingRows.length }} note(s)
+        <span *ngIf="ratingAverage !== null"> · moyenne : <strong>{{ ratingAverage }} / 5</strong></span>
+      </p>
+      <p *ngIf="ratingRows.length === 0" style="color: #666;">Aucune note pour ce cours.</p>
+      <table *ngIf="ratingRows.length > 0" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background: #f4f6f8; text-align: left;">
+            <th style="padding: 8px;">Tutoriel</th>
+            <th style="padding: 8px;">Note</th>
+            <th style="padding: 8px;">Nom</th>
+            <th style="padding: 8px;">E-mail</th>
+            <th style="padding: 8px;">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of ratingRows" style="border-top: 1px solid #eee;">
+            <td style="padding: 8px;">{{ r.tutorialTitle }}</td>
+            <td style="padding: 8px;">{{ r.rating }} / 5</td>
+            <td style="padding: 8px;">{{ r.name }}</td>
+            <td style="padding: 8px;">{{ r.email }}</td>
+            <td style="padding: 8px;">{{ r.date | date:'dd/MM/yyyy HH:mm' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+-->
+
+
+
+
+
+
+
+    <!-- ================= PANNEAU STATISTIQUES D'UN TUTORIEL (ADMIN) ================= -->
+  <div id="tutorialStatsPanel" *ngIf="isAdmin && showTStats" style="padding: 20px; background: #ffffff; border-radius: 12px; margin: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h2 style="font-size: 18px; font-weight: bold; color: #3880ff;">
+        {{ tStatsKind === 'done' ? '📊 Étudiants ayant terminé' : '⭐ Étudiants ayant noté' }} : {{ tStatsTitle }}
+      </h2>
+      <ion-button size="small" color="medium" fill="clear" (click)="showTStats = false">Fermer</ion-button>
+    </div>
+
+    <p *ngIf="tStatsLoading" style="color: #666;">Chargement...</p>
+    <p *ngIf="tStatsError" style="color: #eb445a;">{{ tStatsError }}</p>
+
+    <!-- Qui a terminé ce tutoriel -->
+    <div *ngIf="!tStatsLoading && !tStatsError && tStatsKind === 'done'" style="overflow-x: auto;">
+      <p style="font-size: 14px; margin-bottom: 8px;">{{ tDoneRows.length }} étudiant(s) ont terminé ce tutoriel.</p>
+      <p *ngIf="tDoneRows.length === 0" style="color: #666;">Personne n'a encore terminé ce tutoriel.</p>
+      <table *ngIf="tDoneRows.length > 0" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background: #f4f6f8; text-align: left;">
+            <th style="padding: 8px;">Nom</th>
+            <th style="padding: 8px;">E-mail</th>
+            <th style="padding: 8px;">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of tDoneRows" style="border-top: 1px solid #eee;">
+            <td style="padding: 8px;">{{ r.name }}</td>
+            <td style="padding: 8px;">{{ r.email }}</td>
+            <td style="padding: 8px;">{{ r.date | date:'dd/MM/yyyy HH:mm' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Qui a noté ce tutoriel -->
+    <div *ngIf="!tStatsLoading && !tStatsError && tStatsKind === 'rating'" style="overflow-x: auto;">
+      <p style="font-size: 14px; margin-bottom: 8px;">
+        {{ tRatingRows.length }} note(s)
+        <span *ngIf="tRatingAverage !== null"> · moyenne : <strong>{{ tRatingAverage }} / 5</strong></span>
+      </p>
+      <p *ngIf="tRatingRows.length === 0" style="color: #666;">Personne n'a encore noté ce tutoriel.</p>
+      <table *ngIf="tRatingRows.length > 0" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background: #f4f6f8; text-align: left;">
+            <th style="padding: 8px;">Nom</th>
+            <th style="padding: 8px;">E-mail</th>
+            <th style="padding: 8px;">Note</th>
+            <th style="padding: 8px;">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of tRatingRows" style="border-top: 1px solid #eee;">
+            <td style="padding: 8px;">{{ r.name }}</td>
+            <td style="padding: 8px;">{{ r.email }}</td>
+            <td style="padding: 8px;">{{ r.rating }} / 5</td>
+            <td style="padding: 8px;">{{ r.date | date:'dd/MM/yyyy HH:mm' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  
+
+
+
+
+  </div> <!-- Fin du contenu protégé par connexion -->
+
+</ion-content>
+
+

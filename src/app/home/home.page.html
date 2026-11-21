@@ -1,0 +1,53 @@
+<ion-content>
+  <div class="page">
+
+    <!-- Bandeau d'accueil -->
+    <section class="hero">
+      <div class="hero-text">
+        <span class="tag">PLATEFORME ÉDUCATIVE &amp; COLLABORATIVE</span>
+        <h1>Simplifiez vos cours avec <strong>DocTutor</strong></h1>
+        <p>
+          Une transmission fluide des connaissances, des tutoriels structurés
+          et un accès par rôle sécurisé pour les étudiants et les administrateurs.
+        </p>
+      </div>
+
+      <div class="hero-card">
+        <h3>🎓 Espace d'Apprentissage </h3>
+        <p>Sélectionnez votre profil ci-dessous pour accéder aux fonctionnalités de la plateforme.</p>
+      </div>
+    </section>
+
+    <!-- Choix du rôle -->
+    <section class="roles">
+
+      <div class="role-card">
+        <div class="icon green">📖</div>
+        <h2>Espace Étudiant</h2>
+        <p>
+          Consultez librement le catalogue des cours et accédez aux tutoriels
+          et documents PDF publiés par vos enseignants.
+        </p>
+        <button class="btn green-btn" (click)="selectRole('student')">
+          Entrer en tant qu'Étudiant
+        </button>
+      </div>
+
+      <div class="role-card">
+        <div class="icon blue">⚙️</div>
+        <h2>Espace Administrateur</h2>
+        <p>
+          Gérez les cours, publiez, modifiez ou supprimez des tutoriels
+          et des fichiers PDF (code secret requis).
+        </p>
+        <input #codeInput type="password" class="code-input"
+               placeholder="Code secret"
+               (keyup.enter)="loginAdmin(codeInput.value)">
+        <button class="btn blue-btn" (click)="loginAdmin(codeInput.value)">
+          Connexion Admin
+        </button>
+      </div>
+
+    </section>
+  </div>
+</ion-content>
