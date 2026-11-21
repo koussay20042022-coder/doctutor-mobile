@@ -170,70 +170,61 @@
 
     <ion-list>
       <ion-item *ngFor="let t of tutorials">
-        <ion-label class="ion-text-wrap">
-          <h2>{{ t.title }}</h2>
-          <p>{{ t.description }}</p>
 
-          <ion-badge *ngIf="isAdmin" [color]="t.published ? 'success' : 'medium'">
-            {{ t.published ? 'Publié' : 'Non publié' }}
-          </ion-badge>
-        </ion-label>
-        
-        
-        <!-- >>>  BOUTON FAVORI   <<< -->
+        <!-- Boutons à droite : favori et terminé -->
         <ion-button fill="clear" slot="end" (click)="toggleFavorite(t)">
-        <ion-icon [name]="t.isFavorite ? 'heart' : 'heart-outline'" [color]="t.isFavorite ? 'danger' : 'medium'"></ion-icon>
+          <ion-icon [name]="t.isFavorite ? 'heart' : 'heart-outline'" [color]="t.isFavorite ? 'danger' : 'medium'"></ion-icon>
         </ion-button>
 
-        <!-- Bouton Marquer comme terminé -->
         <ion-button fill="clear" slot="end" (click)="toggleCompletion(t)">
           <ion-icon [name]="t.isCompleted ? 'checkmark-circle' : 'checkmark-circle-outline'" [color]="t.isCompleted ? 'success' : 'medium'"></ion-icon>
         </ion-button>
 
-        <!-- Système de notation par étoiles -->
-        <div style="margin-top: 8px; display: flex; align-items: center; gap: 4px;">
-          <span style="font-size: 12px; color: #666; margin-right: 4px;">Note :</span>
-          <ion-icon 
-          *ngFor="let star of [1,2,3,4,5]; let i = index" 
-          [name]="t.rating >= (i + 1) ? 'star' : 'star-outline'" 
-          color="warning" 
-          (click)="rate(t, i + 1)"
-          style="font-size: 20px; cursor: pointer;">
-          </ion-icon>
-        </div>
+        <!-- Tout le contenu est rangé en colonne (affichage correct en mode portrait) -->
+        <div style="width: 100%; min-width: 0; padding: 8px 0;">
 
-          <!-- Étudiant et admin : consulter le PDF -->
-           <!--
-          <div *ngIf="t.pdf_url" style="margin-top: 8px;">
-            <ion-button size="small" fill="outline" [href]="t.pdf_url" target="_blank">
-              Voir le PDF
-            </ion-button>
-          </div>-->
+          <ion-label class="ion-text-wrap" style="display: block;">
+            <h2>{{ t.title }}</h2>
+            <p>{{ t.description }}</p>
 
-          <!-- Étudiant et admin : consulter le PDF et outils IA -->
+            <ion-badge *ngIf="isAdmin" [color]="t.published ? 'success' : 'medium'">
+              {{ t.published ? 'Publié' : 'Non publié' }}
+            </ion-badge>
+          </ion-label>
+
+          <!-- Système de notation par étoiles -->
+          <div style="margin-top: 8px; display: flex; align-items: center; gap: 4px;">
+            <span style="font-size: 12px; color: #666; margin-right: 4px;">Note :</span>
+            <ion-icon
+              *ngFor="let star of [1,2,3,4,5]; let i = index"
+              [name]="t.rating >= (i + 1) ? 'star' : 'star-outline'"
+              color="warning"
+              (click)="rate(t, i + 1)"
+              style="font-size: 22px; cursor: pointer;">
+            </ion-icon>
+          </div>
+
+          <!-- Étudiant et admin : PDF et outils IA -->
           <div *ngIf="t.pdf_url" style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px;">
             <ion-button size="small" fill="outline" [href]="t.pdf_url" target="_blank" (click)="markPdfViewed(t)">
               Voir le PDF
             </ion-button>
 
-          <!-- Bouton Quiz IA -->
-          <ion-button size="small" color="tertiary" (click)="openQuizOptions(t)">
-            🧠 Quiz IA
-          </ion-button>
+            <ion-button size="small" color="tertiary" (click)="openQuizOptions(t)">
+              🧠 Quiz IA
+            </ion-button>
 
-          <!-- Bouton Résumé IA -->
-          <ion-button size="small" color="secondary" (click)="openSummaryOptions(t)">
-            📄 Résumé IA
-          </ion-button>
+            <ion-button size="small" color="secondary" (click)="openSummaryOptions(t)">
+              📄 Résumé IA
+            </ion-button>
 
+            <ion-button size="small" color="dark" (click)="openChatPdf(t)">
+              💬 Chat PDF
+            </ion-button>
 
-          <ion-button size="small" color="dark" (click)="openChatPdf(t)">
-            💬 Chat PDF
-          </ion-button>
-
-          <ion-button size="small" color="success" (click)="openMindMap(t)">
-            🗺️ Carte mentale
-          </ion-button>
+            <ion-button size="small" color="success" (click)="openMindMap(t)">
+              🗺️ Carte mentale
+            </ion-button>
           </div>
 
           <!-- Admin uniquement -->
@@ -252,62 +243,29 @@
             <input #pdfInput type="file" accept="application/pdf" hidden (change)="changePdf($event, t)">
 
             <ion-button size="small" color="danger" (click)="removeTutorial(t)">Supprimer</ion-button>
-                        <ion-button *ngIf="isAdmin" size="small" color="tertiary" (click)="openTutorialDoneStats(t)">📊 Statistique cours</ion-button>
-            <ion-button *ngIf="isAdmin" size="small" color="secondary" (click)="openTutorialRatingStats(t)">⭐ Statistique note</ion-button>
 
+            <ion-button size="small" color="tertiary" (click)="openTutorialDoneStats(t)">📊 Statistique cours</ion-button>
+            <ion-button size="small" color="secondary" (click)="openTutorialRatingStats(t)">⭐ Statistique note</ion-button>
           </div>
-
-
-
 
           <!-- Section Commentaires -->
           <div style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 8px; width: 100%;">
             <p style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">Commentaires :</p>
 
-            <!-- Liste des commentaires du tutoriel -->
-             <!--
-            <div *ngFor="let comment of t.comments" style="font-size: 12px; background: #f9f9f9; padding: 6px; border-radius: 4px; margin-bottom: 4px;">
-              {{ comment.text }}
-            </div> -->
             <div *ngFor="let comment of t.comments" style="font-size: 12px; background: #f9f9f9; padding: 6px; border-radius: 4px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; gap: 6px;">
-              <span>
+              <span style="min-width: 0; word-break: break-word;">
                 <strong *ngIf="comment.authorName">{{ comment.authorName }} : </strong>{{ comment.text }}
               </span>
               <ion-button *ngIf="isAdmin" size="small" color="danger" fill="clear" (click)="removeComment(t, comment)">Supprimer</ion-button>
             </div>
 
-            <!-- Champ pour ajouter un commentaire -->
-            <div style="display: flex; gap: 6px; margin-top: 6px;">
-              <ion-input [(ngModel)]="t.newCommentText" placeholder="Écrire un commentaire..." style="font-size: 12px; border: 1px solid #ccc; border-radius: 4px; padding: 4px;"></ion-input>
+            <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center;">
+              <ion-input [(ngModel)]="t.newCommentText" placeholder="Écrire un commentaire..." style="flex: 1; min-width: 0; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; padding: 4px;"></ion-input>
               <ion-button size="small" (click)="postComment(t)">Envoyer</ion-button>
             </div>
           </div>
-          
-          
-          
-          <!-- Section Commentaires --> 
-          <!--
-          <div style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 8px; width: 100%;">
-            <p style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">Commentaires :</p>
-            -->
-      
-            <!-- Liste des commentaires du tutoriel -->
-            <!--
-            <div *ngFor="let comment of t.comments" style="font-size: 12px; background: #f9f9f9; padding: 6px; border-radius: 4px; margin-bottom: 4px;">
-              {{ comment.text }}
-            </div>
-            -->
 
-            <!-- Champ pour ajouter un commentaire -->
-            <!--
-            <div style="display: flex; gap: 6px; margin-top: 6px;">
-              <ion-input [(ngModel)]="t.newCommentText" placeholder="Écrire un commentaire..." style="font-size: 12px; border: 1px solid #ccc; border-radius: 4px; padding: 4px;"></ion-input>
-              <ion-button size="small" (click)="postComment(t)">Envoyer</ion-button>
-            </div>
-          </div>  -->
-
-
-        <!--</ion-label>-->
+        </div>
       </ion-item>
     </ion-list>
   </ng-container>
