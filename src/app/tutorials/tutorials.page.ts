@@ -367,23 +367,9 @@ export class TutorialsPage implements OnInit {
     await alert.present();
   }
 
-  // 2. Appel du Backend pour générer le quiz
-  async fetchAndStartQuiz(tutorial: any, numQuestions: number) {
-    const textContent = tutorial.description || "Cours sur " + tutorial.title;
-
-    try {
-      const res: any = await firstValueFrom(
-        this.tutorialService.generateQuiz({ text: textContent, numQuestions: numQuestions })
-      );
-      this.currentQuiz = res.quiz;
-      this.currentQuestionIndex = 0;
-      this.userScore = 0;
-      this.quizFinished = false;
-      this.showQuizModal = true;
-    } catch (err) {
-      console.error('Erreur génération quiz :', err);
-      alert("Erreur lors de la génération du quiz par l'IA.");
-    }
+  // 2. Ouvre la page du quiz (la génération se fait dans QuizPage)
+  fetchAndStartQuiz(tutorial: any, numQuestions: number) {
+    this.router.navigate(['/quiz', tutorial.id, numQuestions]);
   }
   // 3. Vérifier la réponse en direct
   selectAnswer(option: string) {
@@ -468,38 +454,9 @@ export class TutorialsPage implements OnInit {
     await choice.present();
   }
 
-  // Étape 2 : l'appel au backend et l'affichage dans le panneau
+  // Étape 2 : ouvre la page du résumé (la génération se fait dans SummaryPage)
   generateSummary(tutorial: any, mode: string) {
-    const labels: any = {
-      court: 'Résumé court',
-      long: 'Résumé long',
-      fiche: 'Fiche de révision'
-    };
-
-    this.summaryTitle = `${labels[mode] || 'Résumé'} : ${tutorial.title}`;
-    this.summaryText = '';
-    this.summaryLoading = true;
-    this.showSummaryPanel = true;
-    this.cdr.detectChanges();
-    this.scrollToSummary();
-
-    this.tutorialService.summarizeText({
-      tutorialId: tutorial.id,
-      text: tutorial.description || ('Cours sur ' + tutorial.title),
-      mode
-    }).subscribe({
-      next: (res: any) => {
-        this.summaryText = res.summary || '';
-        this.summaryLoading = false;
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        console.error('Erreur résumé :', err);
-        this.summaryText = "Erreur lors de la génération par l'IA. Réessayez dans un instant.";
-        this.summaryLoading = false;
-        this.cdr.detectChanges();
-      }
-    });
+    this.router.navigate(['/summary', tutorial.id, mode]);
   }
 
   private scrollToSummary() {
@@ -616,6 +573,16 @@ export class TutorialsPage implements OnInit {
           item.courseId === null || item.courseId === undefined
         );
 
+        // Retour depuis une autre page (résumé, quiz...) : on rouvre le dernier cours
+        let restored = false;
+        if (!this.selectedCourse) {
+          const savedId = sessionStorage.getItem('last_course_id');
+          const saved = savedId
+            ? this.courses.find((c: any) => Number(c.id) === Number(savedId))
+            : null;
+          if (saved) { this.selectedCourse = saved; restored = true; }
+        }
+
         // Si un cours est déjà ouvert, actualiser sa liste de tutoriels.
         if (this.selectedCourse) {
           const refreshedCourse = this.courses.find(
@@ -625,6 +592,10 @@ export class TutorialsPage implements OnInit {
           if (refreshedCourse) {
             this.selectedCourse = refreshedCourse;
             this.loadCourseTutorials(refreshedCourse);
+            if (restored) {
+              this.loadCompletedState();
+              this.loadProgress(refreshedCourse.id);
+            }
           } else {
             this.selectedCourse = null;
             this.tutorials = [];
@@ -648,6 +619,7 @@ export class TutorialsPage implements OnInit {
   
   selectCourse(course: any): void {
     this.selectedCourse = course;
+    sessionStorage.setItem('last_course_id', String(course.id));
     this.loadCourseTutorials(course);
     this.loadCompletedState();
 
@@ -672,6 +644,7 @@ export class TutorialsPage implements OnInit {
   }
 
   backToCourses(): void {
+    sessionStorage.removeItem('last_course_id');
     this.selectedCourse = null;
     this.tutorials = [];
   }
@@ -778,6 +751,7 @@ export class TutorialsPage implements OnInit {
     localStorage.removeItem('student_email');
     localStorage.removeItem('student_name');
     localStorage.removeItem('student_id');
+    sessionStorage.removeItem('last_course_id');
     window.location.href = '/home';
   }
 

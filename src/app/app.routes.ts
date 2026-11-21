@@ -28,6 +28,16 @@ export const routes: Routes = [
   },
 
   {
+    path: 'summary/:id/:mode',
+    loadComponent: () => import('./summary/summary.page').then((m) => m.SummaryPage),
+  },
+
+  {
+    path: 'quiz/:id/:count',
+    loadComponent: () => import('./quiz/quiz.page').then((m) => m.QuizPage),
+  },
+
+  {
     path: 'tutorial-stats/:id/:kind',
     loadComponent: () => import('./tutorial-stats/tutorial-stats.page').then((m) => m.TutorialStatsPage),
   },
