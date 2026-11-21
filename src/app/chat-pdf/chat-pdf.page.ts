@@ -6,6 +6,17 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonContent } from '@ionic/angular';
 import { TutorialService } from '../services/tutorial.service';
 
+
+import * as pdfjsLib from 'pdfjs-dist';
+
+(pdfjsLib as any).GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+
+
+
+
+
 interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
@@ -31,7 +42,20 @@ interface ChatMessage {
 
         <!-- Gauche : le PDF -->
         <div class="pane">
+        <!--
           <iframe *ngIf="safeUrl" [src]="safeUrl" title="PDF"></iframe>
+          -->
+
+
+        <div class="pdfview" id="pdfBox" *ngIf="!error"></div>
+        <p class="info" *ngIf="pdfLoading">Chargement du PDF...</p>
+        <p class="info" *ngIf="pdfFailed">
+            Affichage impossible dans la page.
+            <a [href]="pdfUrl" target="_blank">Ouvrir le PDF dans un nouvel onglet</a>
+        </p>
+
+
+
           <p class="info" *ngIf="!safeUrl && !error">Chargement du PDF...</p>
           <p class="info" *ngIf="error">{{ error }}</p>
         </div>
@@ -67,6 +91,10 @@ interface ChatMessage {
     .split { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 56px); }
     .pane { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid #ddd; }
     .pane iframe { flex: 1; width: 100%; border: 0; }
+
+    .pdfview { flex: 1; overflow: auto; padding: 8px; background: #e9ecef; }
+
+
     .chat { border-right: 0; }
     .messages { flex: 1; overflow-y: auto; padding: 12px; }
     .bubble { background: #f1f3f5; padding: 10px 12px; border-radius: 10px; margin-bottom: 10px; max-width: 90%; white-space: pre-wrap; }
@@ -91,6 +119,9 @@ export class ChatPdfPage implements OnInit {
   loading = false;
   error = '';
 
+  pdfLoading = true;
+  pdfFailed = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -106,11 +137,21 @@ export class ChatPdfPage implements OnInit {
         this.tutorial = t;
         if (!t.pdf_url) {
           this.error = "Ce tutoriel n'a pas de PDF.";
+        //} else {
+          //this.pdfUrl = t.pdf_url;
+          //this.safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(t.pdf_url);
+        //}
+        //this.cdr.detectChanges();
+
         } else {
           this.pdfUrl = t.pdf_url;
-          this.safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(t.pdf_url);
         }
         this.cdr.detectChanges();
+        if (t.pdf_url) {
+          setTimeout(() => this.renderPdf(t.pdf_url), 0);
+        }
+
+
       },
       error: () => {
         this.error = 'Impossible de charger ce tutoriel.';
@@ -159,10 +200,22 @@ export class ChatPdfPage implements OnInit {
     return Array.from(found);
   }
 
-  goToPage(n: number): void {
-    this.safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(`${this.pdfUrl}#page=${n}`);
-    this.cdr.detectChanges();
+  //goToPage(n: number): void {
+    //this.safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(`${this.pdfUrl}#page=${n}`);
+    //this.cdr.detectChanges();
+  //}
+
+
+
+    goToPage(n: number): void {
+    const el = document.getElementById('pdf-page-' + n);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
+
+
+
 
   private scrollDown(): void {
     setTimeout(() => {
@@ -170,4 +223,54 @@ export class ChatPdfPage implements OnInit {
       if (el) { el.scrollTop = el.scrollHeight; }
     }, 50);
   }
+
+
+
+
+    // Dessine toutes les pages du PDF (fonctionne aussi sur téléphone)
+  async renderPdf(url: string): Promise<void> {
+    try {
+      const pdf = await (pdfjsLib as any).getDocument(url).promise;
+      const box = document.getElementById('pdfBox');
+      if (!box) { return; }
+      box.innerHTML = '';
+
+      const width = (box.clientWidth || 320) - 16;
+      const ratio = window.devicePixelRatio || 1;
+
+      for (let n = 1; n <= pdf.numPages; n++) {
+        const page = await pdf.getPage(n);
+        const base = page.getViewport({ scale: 1 });
+        const viewport = page.getViewport({ scale: width / base.width });
+
+        const canvas = document.createElement('canvas');
+        canvas.id = 'pdf-page-' + n;
+        canvas.width = viewport.width * ratio;
+        canvas.height = viewport.height * ratio;
+        canvas.style.width = viewport.width + 'px';
+        canvas.style.height = viewport.height + 'px';
+        canvas.style.display = 'block';
+        canvas.style.margin = '0 auto 8px';
+        box.appendChild(canvas);
+
+        await page.render({
+          canvasContext: canvas.getContext('2d'),
+          viewport,
+          transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : undefined
+        }).promise;
+
+        if (n === 1) {
+          this.pdfLoading = false;
+          this.cdr.detectChanges();
+        }
+      }
+    } catch (e) {
+      console.error('Erreur affichage PDF :', e);
+      this.pdfLoading = false;
+      this.pdfFailed = true;
+      this.cdr.detectChanges();
+    }
+  }
+
+  
 }
